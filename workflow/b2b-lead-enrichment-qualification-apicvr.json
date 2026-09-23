@@ -1,0 +1,639 @@
+{
+  "name": "B2B Lead Enrichment & Qualification - APICVR",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "6b423613-4c70-48c7-bb98-546e78095833",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "YOUR_GOOGLE_SHEET_NAME",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 955258800,
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=955258800"
+        },
+        "options": {}
+      },
+      "id": "c66282ed-307b-466d-98ca-f2bc941622fa",
+      "name": "Read Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2464,
+        560
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "processed-false",
+              "leftValue": "={{ String($json.processed).trim().toUpperCase() }}",
+              "rightValue": "FALSE",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3672fe29-6070-4d57-b649-10b51873d573",
+      "name": "Only Unprocessed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2688,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://apicvr.dk/api/v1/{{ encodeURIComponent($json.cvr) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "51aa1c51-e166-44fb-b73d-5abb48139977",
+      "name": "APICVR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2928,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const lead = $('Only Unprocessed').item.json;\nconst api = $json;\n\nconst enddate = api.enddate ?? null;\nconst employees = api.employees;\nconst protectedFlag = api.protected === true;\nconst bankrupt = api.bankrupt === true;\n\nlet priority;\nif (enddate) {\n  priority = 'Inactive – Do Not Contact';\n} else if (bankrupt) {\n  priority = 'Do Not Contact';\n} else if (protectedFlag) {\n  priority = 'Do Not Contact';\n} else if (typeof employees === 'number') {\n  if (employees >= 50) priority = 'High';\n  else if (employees >= 10) priority = 'Medium';\n  else priority = 'Low';\n} else {\n  priority = 'Unknown';\n}\n\nreturn {\n  json: {\n    lead_name: lead.lead_name ?? '',\n    lead_email: lead.lead_email ?? '',\n    cvr: String(api.vat ?? lead.cvr ?? ''),\n    company_name: api.name ?? '',\n    company_status: api.status ?? '',\n    company_type: api.companytypeshort ?? api.companydesc ?? '',\n    company_status_date: enddate ?? '',\n    bankrupt,\n    protected: protectedFlag,\n    industry_code: String(api.industrycode ?? ''),\n    industry_description: api.industrydesc ?? '',\n    employees: employees ?? '',\n    establishment_date: api.startdate ?? '',\n    address: api.address ?? '',\n    postal_code: api.zipcode ?? '',\n    city: api.city ?? '',\n    priority,\n    data_source: 'apicvr.dk',\n    processed_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "11a2085d-8f5c-4a73-8fd1-23a381e70b10",
+      "name": "Enrich & Qualify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3152,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "YOUR_GOOGLE_SHEET_NAME",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1843998304,
+          "mode": "list",
+          "cachedResultName": "Industry Codes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=1843998304"
+        },
+        "options": {}
+      },
+      "id": "64e8cfab-388c-43c6-9521-b34fb4d4ef73",
+      "name": "Read Industry Codes",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3360,
+        560
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Find alle unikke industrikoder markeret som target = TRUE\nconst targetCodes = new Set(\n  $input.all()\n    .filter(item => String(item.json.target ?? '').trim().toUpperCase() === 'TRUE')\n    .map(item => String(item.json.industry_code ?? '').trim())\n);\n\n// Hent alle enrichede leads (ikke bare det aktuelle item)\nconst leads = $('Enrich & Qualify').all();\n\nreturn leads.map(item => {\n  const lead = item.json;\n  const code = String(lead.industry_code ?? '').trim();\n\n  return {\n    json: {\n      ...lead,\n      industry_match: targetCodes.has(code)\n    }\n  };\n});"
+      },
+      "id": "9d49ded3-770b-4ee2-8308-61b945c88b66",
+      "name": "Industry Match",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "YOUR_GOOGLE_SHEET_NAME",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 600988527,
+          "mode": "list",
+          "cachedResultName": "Enriched Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=600988527"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cvr": "={{$json.cvr}}",
+            "lead_name": "={{$json.lead_name}}",
+            "lead_email": "={{$json.lead_email}}",
+            "company_name": "={{$json.company_name}}",
+            "company_status": "={{$json.company_status}}",
+            "company_type": "={{$json.company_type}}",
+            "company_status_date": "={{$json.company_status_date}}",
+            "bankrupt": "={{$json.bankrupt}}",
+            "protected": "={{$json.protected}}",
+            "industry_code": "={{$json.industry_code}}",
+            "industry_description": "={{$json.industry_description}}",
+            "employees": "={{$json.employees}}",
+            "establishment_date": "={{$json.establishment_date}}",
+            "address": "={{$json.address}}",
+            "postal_code": "={{$json.postal_code}}",
+            "city": "={{$json.city}}",
+            "industry_match": "={{$json.industry_match}}",
+            "priority": "={{$json.priority}}",
+            "data_source": "={{$json.data_source}}",
+            "processed_at": "={{$json.processed_at}}"
+          },
+          "matchingColumns": [
+            "cvr"
+          ],
+          "schema": [
+            {
+              "id": "lead_name",
+              "displayName": "lead_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "lead_email",
+              "displayName": "lead_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cvr",
+              "displayName": "cvr",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company_status",
+              "displayName": "company_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company_type",
+              "displayName": "company_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company_status_date",
+              "displayName": "company_status_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "bankrupt",
+              "displayName": "bankrupt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "protected",
+              "displayName": "protected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "industry_code",
+              "displayName": "industry_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "industry_description",
+              "displayName": "industry_description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "employees",
+              "displayName": "employees",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "establishment_date",
+              "displayName": "establishment_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "address",
+              "displayName": "address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "postal_code",
+              "displayName": "postal_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "industry_match",
+              "displayName": "industry_match",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "data_source",
+              "displayName": "data_source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ca892dd8-e21b-4166-ac0d-3911d0728227",
+      "name": "Upsert Enriched Lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3808,
+        560
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "YOUR_GOOGLE_SHEET_NAME",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 955258800,
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=955258800"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cvr": "={{$json.cvr}}",
+            "processed": "TRUE"
+          },
+          "matchingColumns": [
+            "cvr"
+          ],
+          "schema": [
+            {
+              "id": "lead_name",
+              "displayName": "lead_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lead_email",
+              "displayName": "lead_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cvr",
+              "displayName": "cvr",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "processed",
+              "displayName": "processed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Set processed to FALSE for new/unprocessed leads.",
+              "displayName": "Set processed to FALSE for new/unprocessed leads.",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "6d5871a8-d011-4608-807d-c15482874a29",
+      "name": "Mark Lead Processed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        4032,
+        560
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Leads": {
+      "main": [
+        [
+          {
+            "node": "Only Unprocessed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Only Unprocessed": {
+      "main": [
+        [
+          {
+            "node": "APICVR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APICVR": {
+      "main": [
+        [
+          {
+            "node": "Enrich & Qualify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich & Qualify": {
+      "main": [
+        [
+          {
+            "node": "Read Industry Codes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Industry Codes": {
+      "main": [
+        [
+          {
+            "node": "Industry Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Industry Match": {
+      "main": [
+        [
+          {
+            "node": "Upsert Enriched Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Enriched Lead": {
+      "main": [
+        [
+          {
+            "node": "Mark Lead Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "YOUR_VERSION_ID",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "YOUR_INSTANCE_ID"
+  },
+  "nodeGroups": [],
+  "id": "YOUR_WORKFLOW_ID",
+  "tags": []
+}
