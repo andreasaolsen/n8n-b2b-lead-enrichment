@@ -122,7 +122,7 @@ This allows the workflow to be run repeatedly without unnecessarily processing t
 
 The sanitized n8n workflow is available here:
 
-[View workflow](./workflow/b2b-lead-enrichment-qualification-apicvr.json)
+[workflow/b2b-lead-enrichment-qualification-apicvr.json](./workflow/b2b-lead-enrichment-qualification-apicvr.json)
 
 The workflow is provided for demonstration and portfolio purposes.
 
